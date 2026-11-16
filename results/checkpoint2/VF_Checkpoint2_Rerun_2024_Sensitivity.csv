@@ -1,0 +1,7 @@
+County,Period,Months,Model,Baseline_MAE,Selected_Model_MAE,MAE_Reduction_pct
+Maricopa,All,12,NB2,240.166667,132.138105,44.9807
+Maricopa,Apr_Dec,9,NB2,135.000000,91.286773,32.3802
+Pinal,All,12,XGB_medium,40.833333,28.425391,30.3868
+Pinal,Apr_Dec,9,XGB_medium,23.777778,20.215815,14.9802
+Pima,All,12,XGB_medium,32.333333,29.801654,7.8299
+Pima,Apr_Dec,9,XGB_medium,14.777778,17.148356,-16.0415

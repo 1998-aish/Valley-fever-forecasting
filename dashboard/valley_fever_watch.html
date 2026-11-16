@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0;font-size:14px}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Valley Fever Watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* layout concept: map-led hero w/ timelapse -> KPI band -> sticky county-tab analysis stack (forecast, model, seasonality, ablation) -> limitations -> footer */
+:root{
+  --bg:#F1EFE4; --bg-elev:#FBFAF4; --bg-elev2:#FFFFFF;
+  --fg:#1C2321; --fg-muted:#5B6560; --fg-faint:#8A9089;
+  --line:rgba(28,35,33,0.13); --line-strong:rgba(28,35,33,0.24);
+  --accent:#A8782A; --accent-fg:#FFFDF8; --accent2:#355F57;
+  --risk-low:#5B8A72; --risk-mod:#C99A33; --risk-high:#C2733D; --risk-severe:#9A3F3F; --risk-flat:#B9BCAE;
+  --font-display:'Fraunces',ui-serif,Georgia,serif;
+  --font-body:'Public Sans',ui-sans-serif,system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15191A; --bg-elev:#1C2122; --bg-elev2:#222827;
+    --fg:#EDEAE1; --fg-muted:#9CA39B; --fg-faint:#6C746C;
+    --line:rgba(237,234,225,0.14); --line-strong:rgba(237,234,225,0.26);
+    --accent:#DDAE57; --accent-fg:#1A1510; --accent2:#7FB1A5;
+    --risk-low:#6FA985; --risk-mod:#DFB955; --risk-high:#DC8A5A; --risk-severe:#CC6161; --risk-flat:#3C423F;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15191A; --bg-elev:#1C2122; --bg-elev2:#222827;
+  --fg:#EDEAE1; --fg-muted:#9CA39B; --fg-faint:#6C746C;
+  --line:rgba(237,234,225,0.14); --line-strong:rgba(237,234,225,0.26);
+  --accent:#DDAE57; --accent-fg:#1A1510; --accent2:#7FB1A5;
+  --risk-low:#6FA985; --risk-mod:#DFB955; --risk-high:#DC8A5A; --risk-severe:#CC6161; --risk-flat:#3C423F;
+  color-scheme: dark;
+}
+*{box-sizing:border-box;}
+body{
+  background:var(--bg); color:var(--fg); font-family:var(--font-body);
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+}
+.wrap{max-width:1060px;margin:0 auto;padding-block:40px 64px;}
+h1,h2,h3{font-family:var(--font-display);font-weight:600;letter-spacing:-0.01em;text-wrap:balance;margin:0;}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--accent);font-weight:500;}
+p{line-height:1.55;color:var(--fg-muted);margin:0;}
+.tnum{font-variant-numeric:tabular-nums;}
+
+header.top{display:flex;flex-direction:column;gap:10px;margin-bottom:34px;}
+header.top h1{font-size:clamp(32px,5vw,46px);color:var(--fg);}
+header.top .sub{max-width:62ch;font-size:15.5px;}
+.team{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;font-family:var(--font-mono);font-size:11px;color:var(--fg-faint);}
+
+.hero{display:grid;grid-template-columns:1.15fr 1fr;gap:28px;align-items:start;background:var(--bg-elev);border:1px solid var(--line);border-radius:18px;padding:24px;margin-bottom:28px;position:relative;}
+@media (max-width:760px){.hero{grid-template-columns:1fr;}}
+.map-col svg{width:100%;height:auto;display:block;}
+.map-col .county-shape rect{transition:fill .35s ease,opacity .35s ease,stroke .2s ease;}
+.map-caption{font-size:12px;color:var(--fg-faint);margin-top:10px;}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;color:var(--fg-muted);}
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+.swatch{width:11px;height:11px;border-radius:3px;display:inline-block;}
+
+.tooltip{position:fixed;pointer-events:none;background:var(--fg);color:var(--bg);font-family:var(--font-mono);font-size:11.5px;padding:7px 10px;border-radius:8px;z-index:50;opacity:0;transition:opacity .12s;transform:translate(-50%,-115%);white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.25);}
+.tooltip.show{opacity:1;}
+.tooltip b{color:var(--bg);}
+
+.side-col{display:flex;flex-direction:column;gap:14px;}
+.slider-row{display:flex;flex-direction:column;gap:6px;}
+.slider-row label{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint);}
+.month-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+#monthLabel{font-family:var(--font-display);font-size:22px;font-weight:600;}
+.playbar{display:flex;align-items:center;gap:8px;}
+#playBtn{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--line-strong);background:var(--bg-elev2);color:var(--fg);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;}
+#playBtn:hover{border-color:var(--accent);color:var(--accent);}
+input[type=range]{width:100%;accent-color:var(--accent);}
+select#speedSel{font-family:var(--font-mono);font-size:11px;background:var(--bg-elev2);color:var(--fg-muted);border:1px solid var(--line);border-radius:7px;padding:4px 6px;}
+
+.spark{width:100%;height:auto;display:block;margin-top:2px;cursor:crosshair;}
+
+.county-cards{display:flex;flex-direction:column;gap:8px;}
+.ccard{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--bg-elev2);transition:border-color .15s,transform .15s;}
+.ccard:hover{border-color:var(--line-strong);transform:translateX(2px);}
+.ccard.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;}
+.ccard .dot{width:14px;height:14px;border-radius:50%;flex:none;transition:background .35s ease;}
+.ccard .cname{font-weight:600;font-size:13.5px;}
+.ccard .cstats{font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);display:flex;gap:10px;flex-wrap:wrap;}
+
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px;}
+@media (max-width:640px){.kpis{grid-template-columns:1fr;}}
+.kpi{background:var(--bg-elev);border:1px solid var(--line);border-radius:14px;padding:18px 20px;cursor:pointer;transition:border-color .15s,transform .15s;}
+.kpi:hover{transform:translateY(-2px);}
+.kpi.active{border-color:var(--accent);}
+.kpi .kname{font-weight:600;font-size:14px;margin-bottom:2px;}
+.kpi .kmodel{font-size:11.5px;color:var(--fg-muted);margin-bottom:10px;}
+.kpi .kpct{font-family:var(--font-display);font-size:34px;font-weight:700;line-height:1;}
+.kpi .klabel{font-size:11px;color:var(--fg-faint);margin-top:4px;}
+
+.section{background:var(--bg-elev);border:1px solid var(--line);border-radius:18px;padding:22px 24px;margin-bottom:20px;}
+.section h2{font-size:19px;margin-bottom:4px;}
+.section .lede{font-size:13px;margin-bottom:16px;max-width:70ch;}
+.tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;}
+.tab{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.04em;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--fg-muted);cursor:pointer;transition:background .15s,color .15s;}
+.tab.active{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);}
+.tab:hover:not(.active){border-color:var(--line-strong);}
+svg text{font-family:var(--font-mono);fill:var(--fg-muted);}
+.chart-note{font-size:11.5px;color:var(--fg-faint);margin-top:10px;}
+.flag{display:inline-block;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.04em;padding:2px 7px;border-radius:5px;background:var(--risk-mod);color:#1A1510;font-weight:600;}
+.flag.warn{background:var(--risk-high);color:#1A1510;}
+.flag.good{background:var(--risk-low);color:#0E140F;}
+.flag.bad{background:var(--risk-severe);color:#fff;}
+
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-top:4px;}
+.stat{border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+.stat .sval{font-family:var(--font-mono);font-size:17px;font-weight:500;}
+.stat .slabel{font-size:11px;color:var(--fg-faint);margin-top:2px;}
+
+.limits ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:9px;}
+.limits li{font-size:13.5px;line-height:1.5;color:var(--fg-muted);}
+.limits li b{color:var(--fg);font-weight:600;}
+
+footer{margin-top:10px;padding-top:18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--fg-faint);display:flex;flex-direction:column;gap:4px;}
+
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.bar-row .blabel{width:150px;flex:none;font-size:12px;color:var(--fg-muted);text-align:right;}
+.bar-track{flex:1;background:var(--line);border-radius:5px;height:16px;position:relative;overflow:hidden;}
+.bar-fill{height:100%;border-radius:5px;transition:width .4s ease;}
+.bar-val{width:56px;flex:none;font-family:var(--font-mono);font-size:12px;}
+
+.ablation-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+@media (max-width:700px){.ablation-grid{grid-template-columns:1fr;}}
+.abl-card{border:1px solid var(--line);border-radius:12px;padding:14px;}
+.abl-card .aname{font-weight:600;font-size:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+.abl-bars{display:flex;flex-direction:column;gap:6px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="top">
+    <span class="eyebrow">Arizona &middot; FSE 570 Capstone &middot; Checkpoint 2</span>
+    <h1>Valley Fever Watch</h1>
+    <p class="sub">A three-county forecasting pipeline for coccidioidomycosis (Valley Fever) in Maricopa, Pinal and Pima counties — built from ADHS case reports, EPA PM10, AZMet weather stations and PRISM climate data, 2015&ndash;2025.</p>
+    <span class="team">Team Debaters: Harshavardhan Kagithoju &middot; Sultan Mohiuddin Shaik &middot; Aishwarya Srivastava &middot; Fasbeer Haque</span>
+  </header>
+
+  <section class="hero">
+    <div class="map-col">
+      <svg id="mapSvg" viewBox="0 0 400 400"></svg>
+      <div class="legend" id="legend"></div>
+      <p class="map-caption">Simplified county cartogram (schematic, not surveyed boundaries). Grey counties are not part of this model. Hover a county, or press play to watch risk shift through time.</p>
+    </div>
+    <div class="side-col">
+      <div class="slider-row">
+        <div class="month-head">
+          <label for="monthSlider">Month</label>
+          <span id="monthCount" class="tnum" style="font-family:var(--font-mono);font-size:10.5px;color:var(--fg-faint);"></span>
+        </div>
+        <div id="monthLabel" class="tnum">January 2015</div>
+        <div class="playbar">
+          <button id="playBtn" title="Play timelapse" aria-label="Play timelapse">&#9654;</button>
+          <input type="range" id="monthSlider" min="0" max="131" value="0" step="1">
+          <select id="speedSel" title="Playback speed">
+            <option value="260">1&times;</option>
+            <option value="130" selected>2&times;</option>
+            <option value="60">4&times;</option>
+          </select>
+        </div>
+        <svg id="sparkSvg" class="spark" viewBox="0 0 400 54"></svg>
+      </div>
+      <div class="county-cards" id="countyCards"></div>
+    </div>
+  </section>
+
+  <div class="kpis" id="kpiRow"></div>
+
+  <section class="section">
+    <h2 id="analysisTitle">Maricopa &middot; 2024 forecast vs. actual cases</h2>
+    <p class="lede">Each model is trained only on data through 2023, then frozen and run forward on 2024 without retraining &mdash; so these are genuine out-of-sample forecasts, not a fit to the year shown. Hover a point for the exact numbers.</p>
+    <div class="tabs" id="countyTabs"></div>
+    <svg id="lineChart" viewBox="0 0 760 260" style="width:100%;height:auto;"></svg>
+    <div class="chart-note" id="lineNote"></div>
+  </section>
+
+  <section class="section">
+    <h2>Model comparison &middot; 2024 mean absolute error</h2>
+    <p class="lede">Lower is better. The seasonal baseline simply repeats last year's count for the same month; Tier&nbsp;2 is the model actually selected for deployment in this county.</p>
+    <div id="barChart"></div>
+    <div class="stat-row" id="sensStats"></div>
+  </section>
+
+  <section class="section">
+    <h2>Seasonal pattern &middot; average cases by calendar month</h2>
+    <p class="lede">The "grow&ndash;dry&ndash;blow" cycle predicts a seasonal rhythm in cases. Averaged across 2015&ndash;2025, {COUNTY}'s own data traces that pattern out.</p>
+    <svg id="seasonChart" viewBox="0 0 760 200" style="width:100%;height:auto;"></svg>
+  </section>
+
+  <section class="section">
+    <h2>Does weather data actually help?</h2>
+    <p class="lede">An ablation test: same model, same rows, same settings &mdash; the only difference is whether PM10, rainfall, soil temperature, humidity, wind and VPD are included alongside case history. Pick a period to see where it helped and where it didn't.</p>
+    <div class="tabs" id="ablTabs"></div>
+    <div class="ablation-grid" id="ablGrid"></div>
+  </section>
+
+  <section class="section">
+    <h2>What the model is weighting &middot; SHAP feature importance</h2>
+    <p class="lede" id="shapNote"></p>
+    <svg id="shapChart" viewBox="0 0 700 180" style="width:100%;height:auto;"></svg>
+  </section>
+
+  <section class="section limits">
+    <h2>Limits worth saying out loud</h2>
+    <p class="lede">Checkpoint 2 is a validated proof of concept, not a deployable early-warning system.</p>
+    <ul>
+      <li><b>January&ndash;March 2024</b> coincides with a documented ADHS lab-testing concern (potential false positives). Case counts were not altered; results are also reported excluding those months for fairness.</li>
+      <li><b>Environmental data helps inconsistently</b> &mdash; see the ablation panel above. It even reversed sign across periods for the same county.</li>
+      <li><b>Pima is the hardest county to forecast</b> &mdash; fewer cases means less signal, and the model's improvement over baseline is modest (under 8%) and sometimes negative in sub-periods.</li>
+      <li><b>PM10 is a dust proxy, not a measurement of airborne Coccidioides spores.</b> PRISM uses a county-centroid estimate, not a true area-weighted average.</li>
+      <li><b>2025 figures are provisional</b> and may still be revised by ADHS.</li>
+      <li><b>Reporting delays are simulated, not independently verified</b> &mdash; in Maricopa, a realistic 1-month case-reporting delay alone raises MAE from 132 to about 148.</li>
+      <li>This pipeline is <b>not ready for public-health deployment</b>: no independent real-world validation yet, and Tier&nbsp;3 (a spatial graph model) was never built.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>Sources: Arizona Dept. of Health Services &middot; EPA Air Quality System &middot; AZMet &middot; PRISM Climate Group, Oregon State University.</span>
+    <span>Built from the team's Checkpoint 2 result files. Dashboard generated as a supporting visual &mdash; not a substitute for the full report.</span>
+  </footer>
+
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+(function(){
+"use strict";
+const DATA = {"series":{"Maricopa":[{"month":"2015-01","cases":244,"pm10":20.75,"rain":0.96,"soil":13.82,"tmean":54.5},{"month":"2015-02","cases":268,"pm10":24.75,"rain":0.07,"soil":16.17,"tmean":61.7},{"month":"2015-03","cases":310,"pm10":20.71,"rain":1.04,"soil":18.59,"tmean":68.3},{"month":"2015-04","cases":376,"pm10":27.87,"rain":0.12,"soil":21.62,"tmean":69.8},{"month":"2015-05","cases":385,"pm10":22.95,"rain":0.67,"soil":23.8,"tmean":74.2},{"month":"2015-06","cases":391,"pm10":29.62,"rain":0.08,"soil":28.05,"tmean":90.0},{"month":"2015-07","cases":503,"pm10":23.96,"rain":0.69,"soil":30.79,"tmean":91.3},{"month":"2015-08","cases":542,"pm10":28.78,"rain":0.86,"soil":31.77,"tmean":94.8},{"month":"2015-09","cases":686,"pm10":23.99,"rain":1.02,"soil":30.22,"tmean":86.8},{"month":"2015-10","cases":551,"pm10":21.35,"rain":2.19,"soil":26.52,"tmean":75.8},{"month":"2015-11","cases":579,"pm10":27.2,"rain":0.2,"soil":19.88,"tmean":58.8},{"month":"2015-12","cases":513,"pm10":31.96,"rain":0.12,"soil":14.77,"tmean":50.7},{"month":"2016-01","cases":407,"pm10":23.63,"rain":1.22,"soil":12.84,"tmean":52.1},{"month":"2016-02","cases":344,"pm10":29.78,"rain":0.09,"soil":14.6,"tmean":61},{"month":"2016-03","cases":434,"pm10":38.25,"rain":0,"soil":18.42,"tmean":66.6},{"month":"2016-04","cases":369,"pm10":30.76,"rain":0.38,"soil":20.85,"tmean":70.1},{"month":"2016-05","cases":310,"pm10":27.35,"rain":0.11,"soil":23.87,"tmean":76.0},{"month":"2016-06","cases":348,"pm10":36.71,"rain":0.16,"soil":28.39,"tmean":91.5},{"month":"2016-07","cases":315,"pm10":32.98,"rain":0.39,"soil":31.28,"tmean":95.3},{"month":"2016-08","cases":379,"pm10":24.41,"rain":0.75,"soil":31.63,"tmean":91.1},{"month":"2016-09","cases":285,"pm10":32.04,"rain":0.58,"soil":29.29,"tmean":83.4},{"month":"2016-10","cases":421,"pm10":33.57,"rain":0,"soil":26.05,"tmean":78.2},{"month":"2016-11","cases":422,"pm10":26.9,"rain":0.95,"soil":21.86,"tmean":64.5},{"month":"2016-12","cases":405,"pm10":27.33,"rain":1.13,"soil":16.2,"tmean":54.9},{"month":"2017-01","cases":372,"pm10":18.18,"rain":0.78,"soil":13.97,"tmean":52.6},{"month":"2017-02","cases":287,"pm10":21.99,"rain":1.06,"soil":15.05,"tmean":59.3},{"month":"2017-03","cases":269,"pm10":27.6,"rain":0.02,"soil":18.16,"tmean":67.3},{"month":"2017-04","cases":293,"pm10":31.55,"rain":0,"soil":21.88,"tmean":71.1},{"month":"2017-05","cases":317,"pm10":29.0,"rain":0.09,"soil":25.87,"tmean":77.4},{"month":"2017-06","cases":300,"pm10":36.58,"rain":0,"soil":30.79,"tmean":90.5},{"month":"2017-07","cases":337,"pm10":32.84,"rain":3.31,"soil":33.64,"tmean":93.3},{"month":"2017-08","cases":362,"pm10":26.95,"rain":0.4,"soil":33.13,"tmean":92.0},{"month":"2017-09","cases":328,"pm10":35.36,"rain":0.04,"soil":32.15,"tmean":83.8},{"month":"2017-10","cases":483,"pm10":50.47,"rain":0,"soil":27.58,"tmean":76.1},{"month":"2017-11","cases":734,"pm10":50.7,"rain":0,"soil":23.16,"tmean":67.2},{"month":"2017-12","cases":887,"pm10":46.16,"rain":0,"soil":17.75,"tmean":55.6},{"month":"2018-01","cases":712,"pm10":37.76,"rain":0.34,"soil":15.44,"tmean":57.5},{"month":"2018-02","cases":430,"pm10":32.24,"rain":0.47,"soil":15.77,"tmean":56.5},{"month":"2018-03","cases":428,"pm10":25.03,"rain":0.08,"soil":17.58,"tmean":62.8},{"month":"2018-04","cases":413,"pm10":43.09,"rain":0,"soil":22.49,"tmean":73.8},{"month":"2018-05","cases":500,"pm10":35.6,"rain":0,"soil":26.16,"tmean":78.6},{"month":"2018-06","cases":418,"pm10":33.5,"rain":0.09,"soil":29.5,"tmean":88.2},{"month":"2018-07","cases":497,"pm10":46.8,"rain":0.63,"soil":32.42,"tmean":93.5},{"month":"2018-08","cases":456,"pm10":47.5,"rain":1.46,"soil":33.2,"tmean":92.4},{"month":"2018-09","cases":370,"pm10":33.55,"rain":0.07,"soil":32.16,"tmean":88.8},{"month":"2018-10","cases":459,"pm10":16.01,"rain":4.8,"soil":25.29,"tmean":71.1},{"month":"2018-11","cases":381,"pm10":36.03,"rain":0.22,"soil":19.63,"tmean":59.8},{"month":"2018-12","cases":457,"pm10":26.04,"rain":0.48,"soil":14.94,"tmean":53.6},{"month":"2019-01","cases":558,"pm10":21.4,"rain":0.74,"soil":12.71,"tmean":52.2},{"month":"2019-02","cases":443,"pm10":15.15,"rain":1.57,"soil":13.03,"tmean":51.0},{"month":"2019-03","cases":551,"pm10":22.31,"rain":0.82,"soil":16.52,"tmean":62.1},{"month":"2019-04","cases":521,"pm10":26.07,"rain":0.15,"soil":21.65,"tmean":71.4},{"month":"2019-05","cases":555,"pm10":23.93,"rain":0.04,"soil":24.63,"tmean":72.5},{"month":"2019-06","cases":540,"pm10":29.45,"rain":0,"soil":28.96,"tmean":86.9},{"month":"2019-07","cases":669,"pm10":32.17,"rain":0.38,"soil":31.98,"tmean":94.0},{"month":"2019-08","cases":667,"pm10":28.55,"rain":0.24,"soil":32.95,"tmean":94.5},{"month":"2019-09","cases":565,"pm10":25.32,"rain":2.3,"soil":31.17,"tmean":86.4},{"month":"2019-10","cases":649,"pm10":34.38,"rain":0,"soil":25.49,"tmean":71.4},{"month":"2019-11","cases":800,"pm10":30.77,"rain":2.45,"soil":19.69,"tmean":64.0},{"month":"2019-12","cases":754,"pm10":17.24,"rain":1.22,"soil":14.12,"tmean":52.8},{"month":"2020-01","cases":691,"pm10":23.4,"rain":0.19,"soil":11.85,"tmean":53.0},{"month":"2020-02","cases":582,"pm10":23.3,"rain":1.17,"soil":13.26,"tmean":55.3},{"month":"2020-03","cases":463,"pm10":15.39,"rain":3,"soil":16.53,"tmean":61.2},{"month":"2020-04","cases":306,"pm10":22.71,"rain":0.14,"soil":20.6,"tmean":70.5},{"month":"2020-05","cases":402,"pm10":29.83,"rain":0,"soil":26.42,"tmean":82.3},{"month":"2020-06","cases":514,"pm10":31.67,"rain":0,"soil":29.89,"tmean":88.8},{"month":"2020-07","cases":550,"pm10":30.62,"rain":0.11,"soil":32.75,"tmean":95.7},{"month":"2020-08","cases":711,"pm10":43.88,"rain":0.44,"soil":34.02,"tmean":96.7},{"month":"2020-09","cases":862,"pm10":39.39,"rain":0.05,"soil":31.31,"tmean":87.7},{"month":"2020-10","cases":892,"pm10":48.62,"rain":0,"soil":27.55,"tmean":78.0},{"month":"2020-11","cases":1019,"pm10":42.99,"rain":0,"soil":21.23,"tmean":65.5},{"month":"2020-12","cases":1167,"pm10":33.43,"rain":0.71,"soil":15.2,"tmean":55.0},{"month":"2021-01","cases":975,"pm10":33.04,"rain":0.81,"soil":13.19,"tmean":53.9},{"month":"2021-02","cases":804,"pm10":28.2,"rain":0,"soil":14.54,"tmean":58.3},{"month":"2021-03","cases":856,"pm10":26.69,"rain":0.38,"soil":16.53,"tmean":61.0},{"month":"2021-04","cases":645,"pm10":31.4,"rain":0,"soil":21.66,"tmean":74.2},{"month":"2021-05","cases":583,"pm10":31.76,"rain":0,"soil":25.73,"tmean":80.2},{"month":"2021-06","cases":636,"pm10":35.87,"rain":0.07,"soil":30.16,"tmean":91.8},{"month":"2021-07","cases":567,"pm10":33.55,"rain":3.7,"soil":32.11,"tmean":93.3},{"month":"2021-08","cases":615,"pm10":24.58,"rain":1.97,"soil":31.98,"tmean":92.0},{"month":"2021-09","cases":533,"pm10":27.18,"rain":0.99,"soil":30.94,"tmean":87.5},{"month":"2021-10","cases":627,"pm10":37.75,"rain":0.19,"soil":25.11,"tmean":71.7},{"month":"2021-11","cases":784,"pm10":46.0,"rain":0,"soil":20.58,"tmean":67.0},{"month":"2021-12","cases":923,"pm10":29.57,"rain":1.77,"soil":15.94,"tmean":56.7},{"month":"2022-01","cases":700,"pm10":25.2,"rain":0.17,"soil":12.88,"tmean":55.9},{"month":"2022-02","cases":526,"pm10":27.87,"rain":0.41,"soil":13.71,"tmean":58.2},{"month":"2022-03","cases":507,"pm10":29.07,"rain":0.07,"soil":16.81,"tmean":64.4},{"month":"2022-04","cases":588,"pm10":38.38,"rain":0,"soil":21.75,"tmean":72.9},{"month":"2022-05","cases":675,"pm10":38.37,"rain":0,"soil":25.84,"tmean":80.9},{"month":"2022-06","cases":698,"pm10":34.86,"rain":0.27,"soil":29.99,"tmean":91.1},{"month":"2022-07","cases":753,"pm10":32.06,"rain":1.27,"soil":32.92,"tmean":94.9},{"month":"2022-08","cases":535,"pm10":23.61,"rain":1.63,"soil":31.84,"tmean":91.9},{"month":"2022-09","cases":452,"pm10":24.52,"rain":1.48,"soil":30.94,"tmean":88.9},{"month":"2022-10","cases":417,"pm10":23.79,"rain":1.99,"soil":26.19,"tmean":75.6},{"month":"2022-11","cases":527,"pm10":27.81,"rain":0.26,"soil":17.86,"tmean":57.7},{"month":"2022-12","cases":552,"pm10":24.19,"rain":1.34,"soil":13.31,"tmean":53.1},{"month":"2023-01","cases":500,"pm10":19.52,"rain":0.96,"soil":11.55,"tmean":52.4},{"month":"2023-02","cases":445,"pm10":22.49,"rain":0.57,"soil":11.98,"tmean":55.1},{"month":"2023-03","cases":555,"pm10":18.88,"rain":1.44,"soil":14.72,"tmean":59.8},{"month":"2023-04","cases":487,"pm10":33.77,"rain":0,"soil":19.71,"tmean":71.5},{"month":"2023-05","cases":559,"pm10":29.5,"rain":0.01,"soil":24.97,"tmean":80.3},{"month":"2023-06","cases":504,"pm10":31.71,"rain":0,"soil":27.87,"tmean":84.7},{"month":"2023-07","cases":584,"pm10":43.31,"rain":0.05,"soil":32.05,"tmean":99.4},{"month":"2023-08","cases":734,"pm10":31.18,"rain":0.09,"soil":32.44,"tmean":96.1},{"month":"2023-09","cases":674,"pm10":28.77,"rain":0.47,"soil":30.18,"tmean":87.5},{"month":"2023-10","cases":846,"pm10":43.38,"rain":0,"soil":26.29,"tmean":78.1},{"month":"2023-11","cases":994,"pm10":31.47,"rain":0.48,"soil":20.42,"tmean":65.9},{"month":"2023-12","cases":1156,"pm10":29.82,"rain":0.8,"soil":15.14,"tmean":56.7},{"month":"2024-01","cases":1067,"pm10":23.59,"rain":0.51,"soil":11.85,"tmean":53.0},{"month":"2024-02","cases":973,"pm10":18.54,"rain":1.23,"soil":13.31,"tmean":58.5},{"month":"2024-03","cases":1127,"pm10":17.46,"rain":0.88,"soil":16.29,"tmean":62.2},{"month":"2024-04","cases":660,"pm10":23.55,"rain":0.73,"soil":19.76,"tmean":70.0},{"month":"2024-05","cases":582,"pm10":28.96,"rain":0,"soil":24.63,"tmean":80.2},{"month":"2024-06","cases":674,"pm10":33.17,"rain":0.11,"soil":29.3,"tmean":93.9},{"month":"2024-07","cases":762,"pm10":37.58,"rain":0.2,"soil":32.81,"tmean":99.3},{"month":"2024-08","cases":893,"pm10":26.27,"rain":0.24,"soil":32.74,"tmean":95.9},{"month":"2024-09","cases":752,"pm10":33.9,"rain":0,"soil":30.71,"tmean":91.0},{"month":"2024-10","cases":1021,"pm10":46.8,"rain":0.01,"soil":27.34,"tmean":81.1},{"month":"2024-11","cases":1117,"pm10":38.53,"rain":0.05,"soil":19.26,"tmean":59.8},{"month":"2024-12","cases":1292,"pm10":52.82,"rain":0,"soil":15.75,"tmean":58.1},{"month":"2025-01","cases":1170,"pm10":48.61,"rain":0,"soil":12.81,"tmean":51.3},{"month":"2025-02","cases":909,"pm10":43.02,"rain":0,"soil":14.69,"tmean":62.0},{"month":"2025-03","cases":860,"pm10":29.49,"rain":0.84,"soil":16.85,"tmean":64.5},{"month":"2025-04","cases":834,"pm10":28.84,"rain":0.13,"soil":20.81,"tmean":70.9},{"month":"2025-05","cases":757,"pm10":31.49,"rain":0.42,"soil":24.22,"tmean":80.1},{"month":"2025-06","cases":543,"pm10":27.75,"rain":0.28,"soil":28.26,"tmean":90.2},{"month":"2025-07","cases":516,"pm10":40.04,"rain":0.82,"soil":31.14,"tmean":94.7},{"month":"2025-08","cases":692,"pm10":44.25,"rain":0.16,"soil":32.22,"tmean":96.3},{"month":"2025-09","cases":610,"pm10":30.0,"rain":0.76,"soil":30.19,"tmean":88.8},{"month":"2025-10","cases":606,"pm10":28.31,"rain":1.83,"soil":24.92,"tmean":75.9},{"month":"2025-11","cases":513,"pm10":27.73,"rain":1.54,"soil":19.85,"tmean":66.3},{"month":"2025-12","cases":538,"pm10":28.66,"rain":0.09,"soil":15.51,"tmean":60.1}],"Pinal":[{"month":"2015-01","cases":37,"pm10":20.95,"rain":2.22,"soil":14.9,"tmean":53.7},{"month":"2015-02","cases":32,"pm10":26.89,"rain":0.23,"soil":17.38,"tmean":59.9},{"month":"2015-03","cases":38,"pm10":48.86,"rain":0.78,"soil":20.32,"tmean":65.7},{"month":"2015-04","cases":49,"pm10":46.09,"rain":0.26,"soil":23.45,"tmean":67.9},{"month":"2015-05","cases":47,"pm10":33.53,"rain":1.01,"soil":25.23,"tmean":72.7},{"month":"2015-06","cases":44,"pm10":46.4,"rain":0.32,"soil":30.73,"tmean":88.6},{"month":"2015-07","cases":62,"pm10":38.77,"rain":0.51,"soil":32.72,"tmean":88.9},{"month":"2015-08","cases":64,"pm10":41.67,"rain":1.02,"soil":33.4,"tmean":91.1},{"month":"2015-09","cases":73,"pm10":32.42,"rain":1.11,"soil":30.97,"tmean":84.1},{"month":"2015-10","cases":79,"pm10":30.8,"rain":1.29,"soil":26.59,"tmean":75.1},{"month":"2015-11","cases":76,"pm10":43.7,"rain":0.68,"soil":19.4,"tmean":58.0},{"month":"2015-12","cases":54,"pm10":42.41,"rain":0.51,"soil":14.85,"tmean":49.9},{"month":"2016-01","cases":46,"pm10":25.26,"rain":2.02,"soil":13.3,"tmean":50.7},{"month":"2016-02","cases":46,"pm10":39.49,"rain":0.22,"soil":15.4,"tmean":59.7},{"month":"2016-03","cases":40,"pm10":56.53,"rain":0,"soil":19.81,"tmean":64.9},{"month":"2016-04","cases":57,"pm10":43.97,"rain":0.49,"soil":22.5,"tmean":67.8},{"month":"2016-05","cases":32,"pm10":40.69,"rain":0.22,"soil":25.86,"tmean":74.5},{"month":"2016-06","cases":31,"pm10":58.4,"rain":0.52,"soil":31.07,"tmean":89.5},{"month":"2016-07","cases":48,"pm10":61.41,"rain":0.52,"soil":34.21,"tmean":91.9},{"month":"2016-08","cases":34,"pm10":46.92,"rain":3.24,"soil":33.64,"tmean":87.0},{"month":"2016-09","cases":25,"pm10":43.91,"rain":0.35,"soil":30.76,"tmean":81.5},{"month":"2016-10","cases":40,"pm10":51.17,"rain":0.23,"soil":26.71,"tmean":76.6},{"month":"2016-11","cases":50,"pm10":37.59,"rain":0.99,"soil":21.78,"tmean":63.2},{"month":"2016-12","cases":49,"pm10":35.09,"rain":1.38,"soil":16.31,"tmean":54.4},{"month":"2017-01","cases":46,"pm10":17.77,"rain":2.19,"soil":14.87,"tmean":51.8},{"month":"2017-02","cases":27,"pm10":26.28,"rain":0.45,"soil":17.25,"tmean":57.9},{"month":"2017-03","cases":42,"pm10":41.96,"rain":0.29,"soil":21.26,"tmean":66.3},{"month":"2017-04","cases":34,"pm10":47.9,"rain":0,"soil":24.78,"tmean":69.4},{"month":"2017-05","cases":40,"pm10":44.62,"rain":0.23,"soil":27.63,"tmean":75.4},{"month":"2017-06","cases":35,"pm10":59.81,"rain":0,"soil":32.24,"tmean":89.0},{"month":"2017-07","cases":35,"pm10":53.38,"rain":2.56,"soil":34.37,"tmean":89.4},{"month":"2017-08","cases":46,"pm10":45.46,"rain":0.59,"soil":34.27,"tmean":88.2},{"month":"2017-09","cases":25,"pm10":56.3,"rain":0.66,"soil":32.23,"tmean":82.4},{"month":"2017-10","cases":46,"pm10":69.21,"rain":0,"soil":27.22,"tmean":75.9},{"month":"2017-11","cases":69,"pm10":71.67,"rain":0,"soil":22.89,"tmean":67.0},{"month":"2017-12","cases":82,"pm10":54.1,"rain":0.18,"soil":18.27,"tmean":55.0},{"month":"2018-01","cases":66,"pm10":44.95,"rain":0.62,"soil":16.37,"tmean":56.4},{"month":"2018-02","cases":30,"pm10":44.26,"rain":1.15,"soil":17.46,"tmean":56.2},{"month":"2018-03","cases":41,"pm10":34.9,"rain":0.02,"soil":19.2,"tmean":61.3},{"month":"2018-04","cases":47,"pm10":71.45,"rain":0,"soil":24.27,"tmean":72.5},{"month":"2018-05","cases":59,"pm10":55.79,"rain":0.03,"soil":28.58,"tmean":77.4},{"month":"2018-06","cases":42,"pm10":51.82,"rain":0.94,"soil":31.8,"tmean":86.7},{"month":"2018-07","cases":51,"pm10":65.5,"rain":1.29,"soil":34.38,"tmean":90.5},{"month":"2018-08","cases":41,"pm10":70.45,"rain":1.52,"soil":34.53,"tmean":88.9},{"month":"2018-09","cases":30,"pm10":44.58,"rain":0.73,"soil":33.34,"tmean":86.7},{"month":"2018-10","cases":55,"pm10":18.63,"rain":2.34,"soil":25.91,"tmean":70.9},{"month":"2018-11","cases":42,"pm10":45.74,"rain":0.33,"soil":21.0,"tmean":60.5},{"month":"2018-12","cases":62,"pm10":24.93,"rain":0.69,"soil":17.3,"tmean":52.8},{"month":"2019-01","cases":53,"pm10":20.46,"rain":1.4,"soil":14.54,"tmean":51.8},{"month":"2019-02","cases":59,"pm10":14.47,"rain":3.57,"soil":16.86,"tmean":50.4},{"month":"2019-03","cases":62,"pm10":28.31,"rain":0.49,"soil":19.69,"tmean":60.4},{"month":"2019-04","cases":62,"pm10":40.16,"rain":0.44,"soil":24.66,"tmean":69.7},{"month":"2019-05","cases":74,"pm10":35.05,"rain":0,"soil":27.07,"tmean":71.0},{"month":"2019-06","cases":75,"pm10":63.9,"rain":0,"soil":31.18,"tmean":85.4},{"month":"2019-07","cases":87,"pm10":44.05,"rain":1.15,"soil":33.71,"tmean":91.7},{"month":"2019-08","cases":76,"pm10":39.78,"rain":0.26,"soil":34.21,"tmean":91.1},{"month":"2019-09","cases":64,"pm10":31.75,"rain":0.99,"soil":32.84,"tmean":84.4},{"month":"2019-10","cases":96,"pm10":49.68,"rain":0,"soil":27.6,"tmean":72.1},{"month":"2019-11","cases":119,"pm10":43.67,"rain":3.69,"soil":21.88,"tmean":63.0},{"month":"2019-12","cases":118,"pm10":14.81,"rain":2.42,"soil":15.69,"tmean":51.8},{"month":"2020-01","cases":85,"pm10":19.54,"rain":0.43,"soil":14.24,"tmean":52.2},{"month":"2020-02","cases":70,"pm10":25.65,"rain":0.9,"soil":15.64,"tmean":54.1},{"month":"2020-03","cases":37,"pm10":16.75,"rain":1.64,"soil":20.69,"tmean":60.4},{"month":"2020-04","cases":44,"pm10":31.56,"rain":0,"soil":24.19,"tmean":68.9},{"month":"2020-05","cases":70,"pm10":44.67,"rain":0.07,"soil":29.12,"tmean":80.7},{"month":"2020-06","cases":81,"pm10":49.1,"rain":0,"soil":31.59,"tmean":86.7},{"month":"2020-07","cases":87,"pm10":47.49,"rain":0,"soil":34.0,"tmean":93.0},{"month":"2020-08","cases":100,"pm10":63.49,"rain":0.47,"soil":34.89,"tmean":93.8},{"month":"2020-09","cases":120,"pm10":55.62,"rain":0,"soil":31.76,"tmean":85.9},{"month":"2020-10","cases":110,"pm10":69.06,"rain":0,"soil":27.61,"tmean":76.5},{"month":"2020-11","cases":120,"pm10":61.19,"rain":0.3,"soil":21.53,"tmean":64.4},{"month":"2020-12","cases":164,"pm10":34.95,"rain":0.22,"soil":15.89,"tmean":51.9},{"month":"2021-01","cases":114,"pm10":33.12,"rain":1.36,"soil":15.68,"tmean":52.6},{"month":"2021-02","cases":101,"pm10":34.09,"rain":0,"soil":17.3,"tmean":56.5},{"month":"2021-03","cases":104,"pm10":34.14,"rain":0.29,"soil":19.07,"tmean":59.4},{"month":"2021-04","cases":81,"pm10":42.3,"rain":0.02,"soil":23.86,"tmean":70.6},{"month":"2021-05","cases":59,"pm10":42.34,"rain":0,"soil":28.11,"tmean":77.0},{"month":"2021-06","cases":61,"pm10":49.44,"rain":0.02,"soil":31.88,"tmean":89.5},{"month":"2021-07","cases":73,"pm10":37.59,"rain":4.11,"soil":32.78,"tmean":88.2},{"month":"2021-08","cases":61,"pm10":30.24,"rain":2.48,"soil":31.16,"tmean":87.2},{"month":"2021-09","cases":65,"pm10":34.71,"rain":1.03,"soil":28.43,"tmean":84.1},{"month":"2021-10","cases":62,"pm10":47.42,"rain":0.13,"soil":23.92,"tmean":70.8},{"month":"2021-11","cases":79,"pm10":57.22,"rain":0,"soil":20.29,"tmean":66.5},{"month":"2021-12","cases":135,"pm10":29.85,"rain":1.95,"soil":16.24,"tmean":56.2},{"month":"2022-01","cases":97,"pm10":26.05,"rain":1.03,"soil":13.62,"tmean":53.8},{"month":"2022-02","cases":68,"pm10":32.94,"rain":0.48,"soil":14.58,"tmean":53.6},{"month":"2022-03","cases":73,"pm10":34.93,"rain":0.57,"soil":17.4,"tmean":61.2},{"month":"2022-04","cases":72,"pm10":46.71,"rain":0,"soil":22.0,"tmean":70.2},{"month":"2022-05","cases":78,"pm10":48.93,"rain":0,"soil":25.65,"tmean":78.0},{"month":"2022-06","cases":76,"pm10":45.85,"rain":0.62,"soil":30.28,"tmean":88.3},{"month":"2022-07","cases":93,"pm10":45.34,"rain":1.03,"soil":32.8,"tmean":91.7},{"month":"2022-08","cases":50,"pm10":33.51,"rain":1.87,"soil":32.97,"tmean":87.6},{"month":"2022-09","cases":52,"pm10":32.54,"rain":1.22,"soil":32.06,"tmean":86.1},{"month":"2022-10","cases":50,"pm10":32.13,"rain":1.16,"soil":26.3,"tmean":73.0},{"month":"2022-11","cases":66,"pm10":32.66,"rain":0.19,"soil":18.22,"tmean":56.5},{"month":"2022-12","cases":67,"pm10":17.16,"rain":3.12,"soil":13.92,"tmean":51.9},{"month":"2023-01","cases":56,"pm10":15.63,"rain":2.59,"soil":12.6,"tmean":50.6},{"month":"2023-02","cases":54,"pm10":23.64,"rain":1.35,"soil":12.75,"tmean":52.4},{"month":"2023-03","cases":59,"pm10":19.33,"rain":1.33,"soil":15.69,"tmean":56.8},{"month":"2023-04","cases":47,"pm10":42.54,"rain":0,"soil":20.4,"tmean":67.1},{"month":"2023-05","cases":60,"pm10":38.81,"rain":0.1,"soil":26.16,"tmean":76.8},{"month":"2023-06","cases":60,"pm10":45.88,"rain":0,"soil":29.15,"tmean":82.2},{"month":"2023-07","cases":99,"pm10":59.7,"rain":0.42,"soil":33.45,"tmean":95.0},{"month":"2023-08","cases":97,"pm10":37.01,"rain":0.64,"soil":33.88,"tmean":92.0},{"month":"2023-09","cases":76,"pm10":37.14,"rain":0.37,"soil":30.71,"tmean":84.5},{"month":"2023-10","cases":109,"pm10":54.43,"rain":0,"soil":26.03,"tmean":76.5},{"month":"2023-11","cases":134,"pm10":36.74,"rain":0.59,"soil":20.54,"tmean":64.6},{"month":"2023-12","cases":149,"pm10":24.79,"rain":1.36,"soil":15.2,"tmean":55.5},{"month":"2024-01","cases":149,"pm10":17.66,"rain":1.32,"soil":12.33,"tmean":51.2},{"month":"2024-02","cases":129,"pm10":15.79,"rain":2.45,"soil":14.36,"tmean":56.3},{"month":"2024-03","cases":167,"pm10":19.67,"rain":1.14,"soil":17.61,"tmean":58.2},{"month":"2024-04","cases":74,"pm10":29.57,"rain":0.63,"soil":21.71,"tmean":65.4},{"month":"2024-05","cases":78,"pm10":43.57,"rain":0,"soil":26.38,"tmean":76.0},{"month":"2024-06","cases":100,"pm10":49.58,"rain":0.43,"soil":30.0,"tmean":89.5},{"month":"2024-07","cases":96,"pm10":46.98,"rain":0.71,"soil":33.65,"tmean":94.0},{"month":"2024-08","cases":117,"pm10":30.47,"rain":1.09,"soil":32.97,"tmean":90.7},{"month":"2024-09","cases":98,"pm10":46.12,"rain":0.08,"soil":30.59,"tmean":87.9},{"month":"2024-10","cases":144,"pm10":62.3,"rain":0.05,"soil":26.95,"tmean":78.6},{"month":"2024-11","cases":161,"pm10":48.19,"rain":0.09,"soil":18.52,"tmean":57.8},{"month":"2024-12","cases":171,"pm10":60.67,"rain":0,"soil":15.33,"tmean":56.7},{"month":"2025-01","cases":159,"pm10":63.96,"rain":0.03,"soil":12.62,"tmean":49.6},{"month":"2025-02","cases":135,"pm10":46.93,"rain":0,"soil":15.1,"tmean":59.4},{"month":"2025-03","cases":132,"pm10":42.07,"rain":1.31,"soil":17.38,"tmean":61.1},{"month":"2025-04","cases":92,"pm10":41.27,"rain":0.08,"soil":21.62,"tmean":67.4},{"month":"2025-05","cases":99,"pm10":40.71,"rain":0.08,"soil":25.26,"tmean":75.9},{"month":"2025-06","cases":69,"pm10":39.65,"rain":0.32,"soil":29.57,"tmean":86.8},{"month":"2025-07","cases":86,"pm10":43.58,"rain":0.45,"soil":32.5,"tmean":90.1},{"month":"2025-08","cases":82,"pm10":57.27,"rain":0.67,"soil":32.94,"tmean":91.8},{"month":"2025-09","cases":94,"pm10":37.08,"rain":1.3,"soil":30.99,"tmean":85.1},{"month":"2025-10","cases":79,"pm10":31.32,"rain":1.51,"soil":25.86,"tmean":73.4},{"month":"2025-11","cases":58,"pm10":31.57,"rain":1.27,"soil":20.56,"tmean":64.3},{"month":"2025-12","cases":68,"pm10":29.39,"rain":0.01,"soil":16.11,"tmean":59.0}],"Pima":[{"month":"2015-01","cases":96,"pm10":18.08,"rain":2.88,"soil":11.39,"tmean":52.8},{"month":"2015-02","cases":66,"pm10":21.13,"rain":0.49,"soil":14.72,"tmean":59.3},{"month":"2015-03","cases":59,"pm10":22.11,"rain":0.65,"soil":17.44,"tmean":63.3},{"month":"2015-04","cases":72,"pm10":26.52,"rain":0.3,"soil":21.03,"tmean":65.3},{"month":"2015-05","cases":94,"pm10":25.22,"rain":0.12,"soil":23.23,"tmean":68.2},{"month":"2015-06","cases":129,"pm10":27.41,"rain":1.02,"soil":28.57,"tmean":84.7},{"month":"2015-07","cases":117,"pm10":19.64,"rain":2.95,"soil":29.4,"tmean":83.6},{"month":"2015-08","cases":106,"pm10":19.93,"rain":1.99,"soil":30.39,"tmean":86.1},{"month":"2015-09","cases":148,"pm10":14.76,"rain":2.11,"soil":27.67,"tmean":80.7},{"month":"2015-10","cases":117,"pm10":18.78,"rain":2.14,"soil":23.56,"tmean":72.5},{"month":"2015-11","cases":109,"pm10":22.63,"rain":0.21,"soil":16.1,"tmean":56.4},{"month":"2015-12","cases":87,"pm10":26.87,"rain":0.53,"soil":11.06,"tmean":49.2},{"month":"2016-01","cases":78,"pm10":20.44,"rain":1.65,"soil":9.71,"tmean":50.1},{"month":"2016-02","cases":70,"pm10":27.02,"rain":0.2,"soil":12.38,"tmean":58.1},{"month":"2016-03","cases":77,"pm10":32.04,"rain":0.05,"soil":17.21,"tmean":62.3},{"month":"2016-04","cases":73,"pm10":26.78,"rain":0.5,"soil":20.11,"tmean":64.7},{"month":"2016-05","cases":78,"pm10":26.84,"rain":0,"soil":23.68,"tmean":69.9},{"month":"2016-06","cases":78,"pm10":31.84,"rain":0.59,"soil":27.84,"tmean":85.0},{"month":"2016-07","cases":71,"pm10":24.42,"rain":2.38,"soil":29.98,"tmean":87.5},{"month":"2016-08","cases":57,"pm10":20.04,"rain":2.76,"soil":29.17,"tmean":81.8},{"month":"2016-09","cases":69,"pm10":18.78,"rain":2.21,"soil":26.96,"tmean":77.7},{"month":"2016-10","cases":58,"pm10":23.41,"rain":0.23,"soil":23.42,"tmean":74.8},{"month":"2016-11","cases":90,"pm10":24.11,"rain":0.19,"soil":19.07,"tmean":61.6},{"month":"2016-12","cases":98,"pm10":26.32,"rain":1.15,"soil":13.91,"tmean":53.3},{"month":"2017-01","cases":83,"pm10":16.09,"rain":1.95,"soil":12.03,"tmean":50.2},{"month":"2017-02","cases":65,"pm10":22.71,"rain":0.13,"soil":12.86,"tmean":56.6},{"month":"2017-03","cases":77,"pm10":28.0,"rain":0.05,"soil":18.22,"tmean":64.3},{"month":"2017-04","cases":83,"pm10":29.57,"rain":0.06,"soil":21.39,"tmean":67.4},{"month":"2017-05","cases":70,"pm10":25.33,"rain":0.06,"soil":24.34,"tmean":71.2},{"month":"2017-06","cases":63,"pm10":34.48,"rain":0.02,"soil":28.38,"tmean":84.9},{"month":"2017-07","cases":105,"pm10":22.05,"rain":4.64,"soil":29.25,"tmean":84.9},{"month":"2017-08","cases":75,"pm10":18.46,"rain":1.04,"soil":28.98,"tmean":83.6},{"month":"2017-09","cases":59,"pm10":25.55,"rain":0.27,"soil":27.61,"tmean":79.1},{"month":"2017-10","cases":83,"pm10":37.15,"rain":0,"soil":23.75,"tmean":74.7},{"month":"2017-11","cases":133,"pm10":37.89,"rain":0.08,"soil":19.6,"tmean":66.6},{"month":"2017-12","cases":141,"pm10":36.05,"rain":0.37,"soil":14.57,"tmean":54.5},{"month":"2018-01","cases":90,"pm10":29.93,"rain":0.13,"soil":13.0,"tmean":56.0},{"month":"2018-02","cases":88,"pm10":27.06,"rain":1.87,"soil":13.6,"tmean":54.7},{"month":"2018-03","cases":68,"pm10":22.51,"rain":0.05,"soil":15.36,"tmean":59.4},{"month":"2018-04","cases":61,"pm10":37.26,"rain":0,"soil":20.95,"tmean":69.7},{"month":"2018-05","cases":85,"pm10":29.26,"rain":0.01,"soil":24.7,"tmean":73.2},{"month":"2018-06","cases":94,"pm10":30.11,"rain":0.53,"soil":27.88,"tmean":82.9},{"month":"2018-07","cases":104,"pm10":21.64,"rain":2.48,"soil":29.15,"tmean":85.8},{"month":"2018-08","cases":90,"pm10":21.42,"rain":2.8,"soil":29.51,"tmean":84.3},{"month":"2018-09","cases":72,"pm10":21.68,"rain":2.06,"soil":28.44,"tmean":83.0},{"month":"2018-10","cases":75,"pm10":14.92,"rain":3.32,"soil":22.36,"tmean":68.4},{"month":"2018-11","cases":78,"pm10":27.72,"rain":0.18,"soil":16.76,"tmean":57.8},{"month":"2018-12","cases":62,"pm10":19.17,"rain":1,"soil":13.03,"tmean":51.5},{"month":"2019-01","cases":85,"pm10":15.11,"rain":1.05,"soil":11.0,"tmean":50.6},{"month":"2019-02","cases":114,"pm10":13.21,"rain":2.14,"soil":11.86,"tmean":48.6},{"month":"2019-03","cases":124,"pm10":20.18,"rain":0.86,"soil":14.73,"tmean":58.7},{"month":"2019-04","cases":115,"pm10":21.36,"rain":0.02,"soil":18.9,"tmean":66.4},{"month":"2019-05","cases":121,"pm10":18.78,"rain":0.13,"soil":21.74,"tmean":66.2},{"month":"2019-06","cases":118,"pm10":24.17,"rain":0,"soil":25.61,"tmean":80.5},{"month":"2019-07","cases":143,"pm10":22.01,"rain":2.04,"soil":28.58,"tmean":86.7},{"month":"2019-08","cases":148,"pm10":18.82,"rain":2.55,"soil":29.26,"tmean":86.0},{"month":"2019-09","cases":99,"pm10":15.63,"rain":2.91,"soil":27.55,"tmean":80.7},{"month":"2019-10","cases":123,"pm10":27.12,"rain":0,"soil":23.19,"tmean":69.5},{"month":"2019-11","cases":120,"pm10":22.43,"rain":3.04,"soil":18.44,"tmean":62.1},{"month":"2019-12","cases":131,"pm10":14.45,"rain":1.71,"soil":13.01,"tmean":51.1},{"month":"2020-01","cases":104,"pm10":17.31,"rain":0.59,"soil":10.03,"tmean":51.8},{"month":"2020-02","cases":107,"pm10":19.51,"rain":0.56,"soil":11.71,"tmean":52.7},{"month":"2020-03","cases":92,"pm10":13.09,"rain":0.94,"soil":15.48,"tmean":57.4},{"month":"2020-04","cases":83,"pm10":19.45,"rain":0.2,"soil":19.29,"tmean":65.6},{"month":"2020-05","cases":99,"pm10":25.55,"rain":0.05,"soil":25.73,"tmean":75.8},{"month":"2020-06","cases":128,"pm10":26.89,"rain":0.05,"soil":28.41,"tmean":82.4},{"month":"2020-07","cases":126,"pm10":24.43,"rain":1.09,"soil":29.87,"tmean":88.2},{"month":"2020-08","cases":158,"pm10":28.41,"rain":1.16,"soil":30.47,"tmean":89.3},{"month":"2020-09","cases":150,"pm10":35.29,"rain":0.24,"soil":27.45,"tmean":82.7},{"month":"2020-10","cases":125,"pm10":35.9,"rain":0,"soil":25.07,"tmean":74.6},{"month":"2020-11","cases":153,"pm10":33.34,"rain":0.15,"soil":19.49,"tmean":62.6},{"month":"2020-12","cases":175,"pm10":24.56,"rain":0.31,"soil":13.18,"tmean":51.1},{"month":"2021-01","cases":135,"pm10":26.34,"rain":1.61,"soil":11.35,"tmean":50.7},{"month":"2021-02","cases":138,"pm10":26.47,"rain":0,"soil":12.85,"tmean":54.2},{"month":"2021-03","cases":147,"pm10":23.95,"rain":0.34,"soil":14.42,"tmean":56.6},{"month":"2021-04","cases":86,"pm10":28.69,"rain":0.15,"soil":19.44,"tmean":68},{"month":"2021-05","cases":108,"pm10":26.55,"rain":0,"soil":24.03,"tmean":74.3},{"month":"2021-06","cases":103,"pm10":31.61,"rain":0.11,"soil":28.42,"tmean":86.6},{"month":"2021-07","cases":120,"pm10":19.36,"rain":6.65,"soil":28.94,"tmean":84.4},{"month":"2021-08","cases":82,"pm10":17.59,"rain":4.18,"soil":28.34,"tmean":83.4},{"month":"2021-09","cases":81,"pm10":22.59,"rain":1.04,"soil":28.08,"tmean":80.8},{"month":"2021-10","cases":92,"pm10":29.16,"rain":0.05,"soil":22.64,"tmean":68.5},{"month":"2021-11","cases":99,"pm10":30.75,"rain":0.03,"soil":17.95,"tmean":64.4},{"month":"2021-12","cases":125,"pm10":19.21,"rain":1.63,"soil":14.36,"tmean":54.3},{"month":"2022-01","cases":96,"pm10":19,"rain":0.48,"soil":11.45,"tmean":52.2},{"month":"2022-02","cases":51,"pm10":21.21,"rain":0.24,"soil":11.31,"tmean":51.1},{"month":"2022-03","cases":93,"pm10":22.55,"rain":0.47,"soil":14.15,"tmean":58.3},{"month":"2022-04","cases":80,"pm10":31.05,"rain":0,"soil":18.95,"tmean":67.8},{"month":"2022-05","cases":108,"pm10":31.15,"rain":0,"soil":24.41,"tmean":74.9},{"month":"2022-06","cases":118,"pm10":28.85,"rain":1.03,"soil":29.39,"tmean":84.9},{"month":"2022-07","cases":137,"pm10":21.61,"rain":3.64,"soil":30.48,"tmean":87.3},{"month":"2022-08","cases":104,"pm10":17.58,"rain":4.26,"soil":28.91,"tmean":83.0},{"month":"2022-09","cases":83,"pm10":16.54,"rain":1.42,"soil":28.03,"tmean":81.3},{"month":"2022-10","cases":86,"pm10":17.12,"rain":0.57,"soil":23.42,"tmean":69.6},{"month":"2022-11","cases":82,"pm10":22.8,"rain":0,"soil":17.07,"tmean":54.4},{"month":"2022-12","cases":92,"pm10":16.07,"rain":1.63,"soil":12.58,"tmean":50.8},{"month":"2023-01","cases":102,"pm10":15.07,"rain":1.58,"soil":10.97,"tmean":48.7},{"month":"2023-02","cases":90,"pm10":20.08,"rain":0.99,"soil":11.08,"tmean":49.4},{"month":"2023-03","cases":92,"pm10":17.15,"rain":0.67,"soil":14.75,"tmean":54.8},{"month":"2023-04","cases":83,"pm10":29.57,"rain":0,"soil":20.27,"tmean":64.8},{"month":"2023-05","cases":101,"pm10":23.1,"rain":0.17,"soil":25.39,"tmean":72.8},{"month":"2023-06","cases":107,"pm10":22.9,"rain":0,"soil":29.08,"tmean":77.9},{"month":"2023-07","cases":109,"pm10":26.48,"rain":0.83,"soil":32.89,"tmean":90.5},{"month":"2023-08","cases":115,"pm10":18.78,"rain":1.78,"soil":31.78,"tmean":86.7},{"month":"2023-09","cases":94,"pm10":21.61,"rain":0.74,"soil":30.36,"tmean":80.5},{"month":"2023-10","cases":110,"pm10":28.77,"rain":0.22,"soil":26.48,"tmean":73.0},{"month":"2023-11","cases":142,"pm10":20.94,"rain":0.14,"soil":19.86,"tmean":61.5},{"month":"2023-12","cases":139,"pm10":19.32,"rain":1.72,"soil":14.0,"tmean":53.5},{"month":"2024-01","cases":166,"pm10":15.65,"rain":3.17,"soil":10.82,"tmean":49.0},{"month":"2024-02","cases":150,"pm10":13.92,"rain":1.39,"soil":13.26,"tmean":53.9},{"month":"2024-03","cases":223,"pm10":15.26,"rain":0.83,"soil":16.62,"tmean":56.4},{"month":"2024-04","cases":94,"pm10":17.33,"rain":0.49,"soil":20.75,"tmean":62.8},{"month":"2024-05","cases":92,"pm10":22.82,"rain":0,"soil":25.75,"tmean":72.2},{"month":"2024-06","cases":110,"pm10":26.07,"rain":0.95,"soil":29.18,"tmean":84.8},{"month":"2024-07","cases":118,"pm10":24.54,"rain":1.97,"soil":31.3,"tmean":89.0},{"month":"2024-08","cases":98,"pm10":15.62,"rain":2.25,"soil":31.2,"tmean":86.2},{"month":"2024-09","cases":108,"pm10":23.55,"rain":0.29,"soil":30.45,"tmean":82.7},{"month":"2024-10","cases":126,"pm10":35.71,"rain":0,"soil":26.83,"tmean":76.2},{"month":"2024-11","cases":139,"pm10":24.12,"rain":0.38,"soil":17.93,"tmean":56.1},{"month":"2024-12","cases":190,"pm10":34.3,"rain":0,"soil":14.76,"tmean":56.0},{"month":"2025-01","cases":224,"pm10":39.24,"rain":0.21,"soil":11.96,"tmean":47.9},{"month":"2025-02","cases":142,"pm10":27.56,"rain":0.02,"soil":14.24,"tmean":58.1},{"month":"2025-03","cases":158,"pm10":26.42,"rain":0.49,"soil":17.21,"tmean":59.2},{"month":"2025-04","cases":132,"pm10":25.22,"rain":0.03,"soil":20.98,"tmean":64.7},{"month":"2025-05","cases":127,"pm10":26.88,"rain":0.03,"soil":24.19,"tmean":72.4},{"month":"2025-06","cases":84,"pm10":24.22,"rain":0.99,"soil":28.86,"tmean":83.0},{"month":"2025-07","cases":110,"pm10":26.4,"rain":1.43,"soil":31,"tmean":86.2},{"month":"2025-08","cases":123,"pm10":28.31,"rain":0.61,"soil":32.61,"tmean":88.2},{"month":"2025-09","cases":137,"pm10":15.4,"rain":1.33,"soil":31.07,"tmean":82.0},{"month":"2025-10","cases":114,"pm10":19.48,"rain":1.27,"soil":25.36,"tmean":72.0},{"month":"2025-11","cases":96,"pm10":20.62,"rain":1.49,"soil":20.27,"tmean":62.2},{"month":"2025-12","cases":113,"pm10":21.68,"rain":0.24,"soil":15.53,"tmean":58.4}]},"monthly2024":{"Maricopa":[{"month":"2024-01","actual":1067,"pred":922.5,"seasonal":500,"q1_concern":true},{"month":"2024-02","actual":973,"pred":778.8,"seasonal":445,"q1_concern":true},{"month":"2024-03","actual":1127,"pred":701.7,"seasonal":555,"q1_concern":true},{"month":"2024-04","actual":660,"pred":791.4,"seasonal":487,"q1_concern":false},{"month":"2024-05","actual":582,"pred":593.6,"seasonal":559,"q1_concern":false},{"month":"2024-06","actual":674,"pred":599.8,"seasonal":504,"q1_concern":false},{"month":"2024-07","actual":762,"pred":678.5,"seasonal":584,"q1_concern":false},{"month":"2024-08","actual":893,"pred":770.6,"seasonal":734,"q1_concern":false},{"month":"2024-09","actual":752,"pred":874.8,"seasonal":674,"q1_concern":false},{"month":"2024-10","actual":1021,"pred":921.1,"seasonal":846,"q1_concern":false},{"month":"2024-11","actual":1117,"pred":1208.1,"seasonal":994,"q1_concern":false},{"month":"2024-12","actual":1292,"pred":1207.3,"seasonal":1156,"q1_concern":false}],"Pinal":[{"month":"2024-01","actual":149,"pred":96.7,"seasonal":56,"q1_concern":true},{"month":"2024-02","actual":129,"pred":94.8,"seasonal":54,"q1_concern":true},{"month":"2024-03","actual":167,"pred":94.4,"seasonal":59,"q1_concern":true},{"month":"2024-04","actual":74,"pred":95.3,"seasonal":47,"q1_concern":false},{"month":"2024-05","actual":78,"pred":67.1,"seasonal":60,"q1_concern":false},{"month":"2024-06","actual":100,"pred":77.3,"seasonal":60,"q1_concern":false},{"month":"2024-07","actual":96,"pred":103.7,"seasonal":99,"q1_concern":false},{"month":"2024-08","actual":117,"pred":83.9,"seasonal":97,"q1_concern":false},{"month":"2024-09","actual":98,"pred":97.9,"seasonal":76,"q1_concern":false},{"month":"2024-10","actual":144,"pred":103.0,"seasonal":109,"q1_concern":false},{"month":"2024-11","actual":161,"pred":139.5,"seasonal":134,"q1_concern":false},{"month":"2024-12","actual":171,"pred":147.3,"seasonal":149,"q1_concern":false}],"Pima":[{"month":"2024-01","actual":166,"pred":105.6,"seasonal":102,"q1_concern":true},{"month":"2024-02","actual":150,"pred":120.7,"seasonal":90,"q1_concern":true},{"month":"2024-03","actual":223,"pred":109.4,"seasonal":92,"q1_concern":true},{"month":"2024-04","actual":94,"pred":116.3,"seasonal":83,"q1_concern":false},{"month":"2024-05","actual":92,"pred":90.6,"seasonal":101,"q1_concern":false},{"month":"2024-06","actual":110,"pred":101.6,"seasonal":107,"q1_concern":false},{"month":"2024-07","actual":118,"pred":127.1,"seasonal":109,"q1_concern":false},{"month":"2024-08","actual":98,"pred":108.4,"seasonal":115,"q1_concern":false},{"month":"2024-09","actual":108,"pred":89.2,"seasonal":94,"q1_concern":false},{"month":"2024-10","actual":126,"pred":123.8,"seasonal":110,"q1_concern":false},{"month":"2024-11","actual":139,"pred":152.8,"seasonal":142,"q1_concern":false},{"month":"2024-12","actual":190,"pred":122.0,"seasonal":139,"q1_concern":false}]},"metrics":{"Maricopa":{"model":"Negative Binomial (NB2)","seasonal":240.17,"tier2":132.14,"reduction":45.0,"ridge":154.4,"boosting":165.1,"sens_all":240.17,"sens_aprdec":135.0,"sens_aprdec_tier2":91.29,"sens_aprdec_red":32.4,"prov2025_tier2":134.87,"prov2025_base":273.0,"delay":{"none":132.14,"case1mo":147.83,"case2mo":191.13}},"Pinal":{"model":"XGBoost (medium, pooled)","seasonal":40.83,"tier2":28.43,"reduction":30.4,"ridge":41.48,"boosting":24.27,"sens_all":40.83,"sens_aprdec":23.78,"sens_aprdec_tier2":20.22,"sens_aprdec_red":15.0,"prov2025_tier2":13.72,"prov2025_base":36.75,"delay":null},"Pima":{"model":"XGBoost (medium, pooled)","seasonal":32.33,"tier2":29.8,"reduction":7.8,"ridge":27.54,"boosting":30.79,"sens_all":32.33,"sens_aprdec":14.78,"sens_aprdec_tier2":17.15,"sens_aprdec_red":-16.0,"prov2025_tier2":17.96,"prov2025_base":35.33,"delay":{"none":29.8,"case1mo":34.54,"case2mo":35.53}}},"shap":{"Maricopa":{"note":"Exploratory XGBoost challenger \u2014 NOT the frozen selected NB2 model","feats":[["case_log",0.289],["rh",0.039],["pm10",0.035],["month_cos",0.033],["seasonal_log",0.028]]},"Pinal":{"note":"Frozen selected XGBoost model","feats":[["case_log",0.201],["seasonal_log",0.127],["rh",0.051],["is_pinal",0.046],["month_cos",0.033]]},"Pima":{"note":"Frozen selected XGBoost model","feats":[["case_log",0.178],["seasonal_log",0.078],["rh",0.056],["is_pinal",0.035],["month_cos",0.02]]}},"grid":{"Mohave":[0,0,1,2],"Coconino":[1,0,2,1],"Navajo":[3,0,1,2],"Apache":[4,0,1,2],"Yavapai":[1,1,1,1],"Gila":[2,1,1,2],"LaPaz":[0,2,1,2],"Maricopa":[1,2,1,2],"Graham":[3,2,1,1],"Greenlee":[4,2,1,1],"Yuma":[0,4,1,1],"Pinal":[2,3,1,1],"Pima":[1,4,2,1],"SantaCruz":[3,4,1,0.6],"Cochise":[3,3,2,1]},"modeled":["Maricopa","Pinal","Pima"]};
+const ABL = {"All":{"Maricopa":{"caseOnly":136.1138704160927,"caseEnv":132.13810497258893,"pct":2.920911315907832},"Pinal":{"caseOnly":30.816510518391926,"caseEnv":28.425390879313152,"pct":7.759216078834442},"Pima":{"caseOnly":29.20751126607259,"caseEnv":29.801653544108074,"pct":-2.034210558451925}},"Apr_Dec":{"Maricopa":{"caseOnly":135.64728893607153,"caseEnv":91.28677347307853,"pct":32.70283970356343},"Pinal":{"caseOnly":25.39254167344835,"caseEnv":20.21581522623698,"pct":20.386799060073614},"Pima":{"caseOnly":19.30947028266059,"caseEnv":17.148356119791668,"pct":11.19199093104873}},"Jan_Mar":{"Maricopa":{"caseOnly":137.5136148561563,"caseEnv":254.6920994711202,"pct":-85.21227860785741},"Pinal":{"caseOnly":47.088417053222656,"caseEnv":53.054117838541664,"pct":-12.669147018843619},"Pima":{"caseOnly":58.901634216308594,"caseEnv":67.7615458170573,"pct":-15.041877392080208}},"2025":{"Maricopa":{"caseOnly":102.29280068228677,"caseEnv":134.86749805751586,"pct":-31.844564972273552},"Pinal":{"caseOnly":17.047144571940105,"caseEnv":13.71632194519043,"pct":19.53888883087357},"Pima":{"caseOnly":21.24605369567871,"caseEnv":17.958349863688152,"pct":15.474421175256905}}};
+
+const COUNTIES = DATA.modeled;
+let activeCounty = 'Maricopa';
+let activeMonthIdx = 0;
+let activePeriod = 'All';
+let playing = false, playTimer = null;
+
+function riskColor(z){
+  if(z===null||z===undefined||isNaN(z)) return 'var(--risk-flat)';
+  if(z < -0.4) return 'var(--risk-low)';
+  if(z < 0.5) return 'var(--risk-mod)';
+  if(z < 1.3) return 'var(--risk-high)';
+  return 'var(--risk-severe)';
+}
+function riskWord(z){
+  if(z===null||z===undefined||isNaN(z)) return 'n/a';
+  if(z < -0.4) return 'Below average';
+  if(z < 0.5) return 'Typical';
+  if(z < 1.3) return 'Elevated';
+  return 'High';
+}
+
+const stats = {};
+COUNTIES.forEach(c=>{
+  const vals = DATA.series[c].map(d=>d.cases);
+  const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+  const sd = Math.sqrt(vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/vals.length);
+  stats[c] = {mean, sd};
+});
+function zFor(county, idx){
+  const v = DATA.series[county][idx].cases;
+  const {mean, sd} = stats[county];
+  return sd ? (v-mean)/sd : 0;
+}
+
+const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function monthLabel(ym){
+  const [y,m] = ym.split('-');
+  return monthNames[parseInt(m,10)-1] + ' ' + y;
+}
+
+const tooltip = document.getElementById('tooltip');
+function showTip(x,y,html){
+  tooltip.innerHTML = html;
+  tooltip.style.left = x+'px';
+  tooltip.style.top = y+'px';
+  tooltip.classList.add('show');
+}
+function hideTip(){ tooltip.classList.remove('show'); }
+
+/* ---------- MAP ---------- */
+const CELL = 72, PAD = 14;
+function gridToPx(g){ return {x: PAD + g[0]*CELL, y: PAD + g[1]*CELL, w: g[2]*CELL - 4, h: g[3]*CELL - 4}; }
+function renderMap(){
+  const svg = document.getElementById('mapSvg');
+  let maxX=0, maxY=0;
+  Object.values(DATA.grid).forEach(g=>{ maxX=Math.max(maxX,g[0]+g[2]); maxY=Math.max(maxY,g[1]+g[3]); });
+  svg.setAttribute('viewBox', `0 0 ${PAD*2+maxX*CELL} ${PAD*2+maxY*CELL}`);
+  let html = '';
+  Object.entries(DATA.grid).forEach(([name,g])=>{
+    const p = gridToPx(g);
+    const modeled = COUNTIES.includes(name);
+    let fill = 'var(--risk-flat)';
+    let opacity = modeled ? 1 : 0.35;
+    if(modeled){ fill = riskColor(zFor(name, activeMonthIdx)); }
+    const stroke = (modeled && name===activeCounty) ? 'var(--fg)' : 'var(--bg-elev)';
+    const sw = (modeled && name===activeCounty) ? 2.5 : 1.5;
+    const label = name.replace('LaPaz','La Paz').replace('SantaCruz','Santa Cruz');
+    const fontSize = p.w < 60 ? 9 : 11;
+    html += `<g class="county-shape" data-county="${name}" style="cursor:${modeled?'pointer':'default'}">
+      <rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" rx="6" fill="${fill}" opacity="${opacity}" stroke="${stroke}" stroke-width="${sw}"/>
+      ${p.w>42 ? `<text x="${p.x+p.w/2}" y="${p.y+p.h/2+4}" text-anchor="middle" font-size="${fontSize}" fill="${modeled?'var(--bg-elev)':'var(--fg-faint)'}" font-weight="${modeled?600:400}">${label}</text>` : ''}
+    </g>`;
+  });
+  svg.innerHTML = html;
+  svg.querySelectorAll('.county-shape').forEach(el=>{
+    const name = el.getAttribute('data-county');
+    if(COUNTIES.includes(name)){
+      el.addEventListener('click', ()=> setActiveCounty(name));
+      el.addEventListener('mousemove', (e)=>{
+        const d = DATA.series[name][activeMonthIdx];
+        const z = zFor(name, activeMonthIdx);
+        showTip(e.clientX, e.clientY, `<b>${name}</b> &middot; ${riskWord(z)}<br>${d.cases} cases &middot; ${d.pm10!=null?d.pm10+' µg/m³ PM10':'—'}`);
+      });
+      el.addEventListener('mouseleave', hideTip);
+    }
+  });
+}
+function renderLegend(){
+  const el = document.getElementById('legend');
+  const items = [['Below average','var(--risk-low)'],['Typical','var(--risk-mod)'],['Elevated','var(--risk-high)'],['High','var(--risk-severe)'],['Not modeled','var(--risk-flat)']];
+  el.innerHTML = items.map(([l,c])=>`<span><span class="swatch" style="background:${c}"></span>${l}</span>`).join('');
+}
+
+/* ---------- SPARKLINE (full history, click/drag to scrub) ---------- */
+function renderSpark(){
+  const svg = document.getElementById('sparkSvg');
+  const series = DATA.series[activeCounty];
+  const W=400,H=54,PADX=2;
+  const maxV = Math.max(...series.map(d=>d.cases))*1.05;
+  const x = i => PADX + (i/(series.length-1))*(W-PADX*2);
+  const y = v => H - (v/maxV)*(H-6) - 2;
+  const path = series.map((d,i)=> `${i===0?'M':'L'}${x(i).toFixed(1)},${y(d.cases).toFixed(1)}`).join(' ');
+  const cx = x(activeMonthIdx);
+  svg.innerHTML = `
+    <path d="${path} L${x(series.length-1).toFixed(1)},${H} L${x(0).toFixed(1)},${H} Z" fill="var(--accent2)" opacity="0.12"/>
+    <path d="${path}" fill="none" stroke="var(--accent2)" stroke-width="1.6"/>
+    <line x1="${cx}" y1="0" x2="${cx}" y2="${H}" stroke="var(--fg)" stroke-width="1" opacity="0.5"/>
+    <circle cx="${cx}" cy="${y(series[activeMonthIdx].cases)}" r="3" fill="var(--fg)"/>
+  `;
+  function scrub(evt){
+    const rect = svg.getBoundingClientRect();
+    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+    const frac = Math.min(1,Math.max(0,(clientX-rect.left)/rect.width));
+    const idx = Math.round(frac*(series.length-1));
+    document.getElementById('monthSlider').value = idx;
+    updateMonth(idx);
+  }
+  let dragging=false;
+  svg.onmousedown = e=>{ dragging=true; scrub(e); };
+  window.onmousemove = e=>{ if(dragging) scrub(e); };
+  window.onmouseup = ()=> dragging=false;
+  svg.ontouchstart = e=>{ scrub(e); };
+  svg.ontouchmove = e=>{ scrub(e); };
+}
+
+/* ---------- SIDE PANEL ---------- */
+function renderCountyCards(){
+  const el = document.getElementById('countyCards');
+  el.innerHTML = COUNTIES.map(c=>{
+    const d = DATA.series[c][activeMonthIdx];
+    const z = zFor(c, activeMonthIdx);
+    return `<div class="ccard ${c===activeCounty?'active':''}" data-county="${c}">
+      <span class="dot" style="background:${riskColor(z)}"></span>
+      <div style="flex:1">
+        <div class="cname">${c} County</div>
+        <div class="cstats">
+          <span>${d.cases} cases</span>
+          <span>${d.pm10!=null?d.pm10+' &micro;g/m&sup3; PM10':'&mdash;'}</span>
+          <span>${d.rain!=null?d.rain+'" rain':'&mdash;'}</span>
+        </div>
+      </div>
+      <span style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint);">${riskWord(z)}</span>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.ccard').forEach(card=>{
+    card.addEventListener('click', ()=> setActiveCounty(card.getAttribute('data-county')));
+  });
+}
+
+function updateMonth(idx){
+  activeMonthIdx = idx;
+  const ym = DATA.series[COUNTIES[0]][idx].month;
+  document.getElementById('monthLabel').textContent = monthLabel(ym);
+  document.getElementById('monthCount').textContent = (idx+1)+' / 132';
+  renderMap();
+  renderCountyCards();
+  renderSparkTick();
+}
+function renderSparkTick(){
+  const svg = document.getElementById('sparkSvg');
+  const series = DATA.series[activeCounty];
+  const W=400,PADX=2;
+  const x = PADX + (activeMonthIdx/(series.length-1))*(W-PADX*2);
+  const line = svg.querySelector('line');
+  const dot = svg.querySelector('circle');
+  if(line){ line.setAttribute('x1',x); line.setAttribute('x2',x); }
+  if(dot){
+    const maxV = Math.max(...series.map(d=>d.cases))*1.05;
+    const H=54;
+    const yy = H - (series[activeMonthIdx].cases/maxV)*(H-6) - 2;
+    dot.setAttribute('cx',x); dot.setAttribute('cy',yy);
+  }
+}
+
+/* ---------- PLAY / TIMELAPSE ---------- */
+function togglePlay(){
+  playing = !playing;
+  const btn = document.getElementById('playBtn');
+  btn.innerHTML = playing ? '&#10073;&#10073;' : '&#9654;';
+  if(playing){ stepPlay(); } else { clearTimeout(playTimer); }
+}
+function stepPlay(){
+  if(!playing) return;
+  let next = activeMonthIdx + 1;
+  if(next > 131) next = 0;
+  document.getElementById('monthSlider').value = next;
+  updateMonth(next);
+  const speed = parseInt(document.getElementById('speedSel').value,10);
+  playTimer = setTimeout(stepPlay, speed);
+}
+
+/* ---------- KPI ROW (count-up) ---------- */
+function animateNum(el, target, decimals, prefix, suffix){
+  const dur = 650; const start = performance.now();
+  function frame(t){
+    const p = Math.min(1,(t-start)/dur);
+    const eased = 1-Math.pow(1-p,3);
+    const val = target*eased;
+    el.textContent = prefix + Math.abs(val).toFixed(decimals) + suffix;
+    if(p<1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+function renderKPIs(){
+  const el = document.getElementById('kpiRow');
+  el.innerHTML = COUNTIES.map(c=>{
+    const m = DATA.metrics[c];
+    return `<div class="kpi ${c===activeCounty?'active':''}" data-county="${c}">
+      <div class="kname">${c} County</div>
+      <div class="kmodel">${m.model}</div>
+      <div class="kpct tnum" data-target="${m.reduction}" style="color:${m.reduction>=0?'var(--accent2)':'var(--risk-severe)'}">0%</div>
+      <div class="klabel">forecast error vs. seasonal baseline, 2024</div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.kpi').forEach(k=>{
+    k.addEventListener('click', ()=> setActiveCounty(k.getAttribute('data-county')));
+    const pctEl = k.querySelector('.kpct');
+    const target = parseFloat(pctEl.getAttribute('data-target'));
+    const prefix = target>=0 ? '−' : '+';
+    animateNum(pctEl, target, 1, prefix, '%');
+  });
+}
+
+function renderTabs(){
+  const el = document.getElementById('countyTabs');
+  el.innerHTML = COUNTIES.map(c=>`<button class="tab ${c===activeCounty?'active':''}" data-county="${c}">${c}</button>`).join('');
+  el.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', ()=> setActiveCounty(t.getAttribute('data-county'))));
+}
+
+/* ---------- LINE CHART w/ hover tooltip ---------- */
+function renderLineChart(){
+  const svg = document.getElementById('lineChart');
+  const rows = DATA.monthly2024[activeCounty];
+  const W=760,H=260,ML=46,MR=14,MT=14,MB=28;
+  const plotW = W-ML-MR, plotH = H-MT-MB;
+  const allVals = rows.flatMap(r=>[r.actual,r.pred,r.seasonal]);
+  const maxV = Math.max(...allVals)*1.08;
+  const x = i => ML + (i/(rows.length-1))*plotW;
+  const y = v => MT + plotH - (v/maxV)*plotH;
+  function path(key){
+    return rows.map((r,i)=> `${i===0?'M':'L'}${x(i).toFixed(1)},${y(r[key]).toFixed(1)}`).join(' ');
+  }
+  let gridlines='';
+  const ticks=4;
+  for(let t=0;t<=ticks;t++){
+    const v = maxV*t/ticks;
+    const yy = y(v);
+    gridlines += `<line x1="${ML}" y1="${yy}" x2="${W-MR}" y2="${yy}" stroke="var(--line)" stroke-width="1"/>`;
+    gridlines += `<text x="${ML-8}" y="${yy+3}" text-anchor="end" font-size="10">${Math.round(v)}</text>`;
+  }
+  let q1shade='';
+  rows.forEach((r,i)=>{
+    if(r.q1_concern){
+      const x0 = ML + ((i-0.5)/(rows.length-1))*plotW;
+      const x1 = ML + ((i+0.5)/(rows.length-1))*plotW;
+      q1shade += `<rect x="${x0}" y="${MT}" width="${x1-x0}" height="${plotH}" fill="var(--risk-mod)" opacity="0.12"/>`;
+    }
+  });
+  let xlabels='';
+  rows.forEach((r,i)=>{ xlabels += `<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="9.5">${r.month.slice(5)}</text>`; });
+  let dots = rows.map((r,i)=>`<circle class="hoverdot" data-i="${i}" cx="${x(i)}" cy="${y(r.actual)}" r="7" fill="transparent" stroke="none"/><circle cx="${x(i)}" cy="${y(r.actual)}" r="3" fill="var(--fg)"/>`).join('');
+  svg.innerHTML = `
+    ${gridlines}${q1shade}
+    <path d="${path('seasonal')}" fill="none" stroke="var(--fg-faint)" stroke-width="2" stroke-dasharray="4 4"/>
+    <path d="${path('pred')}" fill="none" stroke="var(--accent2)" stroke-width="2.5"/>
+    <path d="${path('actual')}" fill="none" stroke="var(--fg)" stroke-width="2"/>
+    ${dots}
+    ${xlabels}
+  `;
+  svg.querySelectorAll('.hoverdot').forEach(dot=>{
+    const i = parseInt(dot.getAttribute('data-i'),10);
+    const r = rows[i];
+    dot.addEventListener('mousemove', (e)=>{
+      showTip(e.clientX, e.clientY, `<b>${r.month}</b><br>Actual: ${r.actual} &middot; Predicted: ${r.pred} &middot; Baseline: ${r.seasonal}${r.q1_concern?'<br><span style="color:#E0B454">⚠ Jan–Mar testing concern</span>':''}`);
+    });
+    dot.addEventListener('mouseleave', hideTip);
+  });
+  document.getElementById('analysisTitle').textContent = `${activeCounty} · 2024 forecast vs. actual cases`;
+  document.getElementById('lineNote').innerHTML =
+    `<span style="color:var(--fg)">&mdash; actual cases</span> &nbsp; <span style="color:var(--accent2)">&mdash; selected model forecast</span> &nbsp; <span style="color:var(--fg-faint)">&#8226;&#8226;&#8226; seasonal baseline</span> &nbsp; <span class="flag warn">shaded</span> months flagged for the Jan&ndash;Mar 2024 testing concern.`;
+}
+
+/* ---------- BAR CHART ---------- */
+function renderBarChart(){
+  const el = document.getElementById('barChart');
+  const m = DATA.metrics[activeCounty];
+  const series = [
+    ['Seasonal baseline', m.seasonal, 'var(--fg-faint)'],
+    ['Tier 1 — Ridge', m.ridge, 'var(--risk-flat)'],
+    ['Tier 1 — Boosting', m.boosting, 'var(--risk-flat)'],
+    ['Tier 2 — ' + m.model + ' (selected)', m.tier2, 'var(--accent)'],
+  ];
+  const maxV = Math.max(...series.map(s=>s[1]))*1.05;
+  el.innerHTML = series.map(([label,val,color])=>{
+    const pct = (val/maxV*100).toFixed(1);
+    return `<div class="bar-row">
+      <div class="blabel">${label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0%;background:${color}" data-w="${pct}"></div></div>
+      <div class="bar-val tnum">${val.toFixed(1)}</div>
+    </div>`;
+  }).join('');
+  requestAnimationFrame(()=>{
+    el.querySelectorAll('.bar-fill').forEach(b=>{ b.style.width = b.getAttribute('data-w')+'%'; });
+  });
+
+  const sensEl = document.getElementById('sensStats');
+  sensEl.innerHTML = `
+    <div class="stat"><div class="sval tnum">${m.sens_aprdec_red>=0?'−':'+'}${Math.abs(m.sens_aprdec_red).toFixed(1)}%</div><div class="slabel">error change, Apr–Dec only (excl. Q1 concern)</div></div>
+    <div class="stat"><div class="sval tnum">${m.prov2025_tier2.toFixed(1)} <span style="color:var(--fg-faint);font-size:12px">vs ${m.prov2025_base.toFixed(1)}</span></div><div class="slabel">2025 provisional MAE, model vs. baseline</div></div>
+    ${m.delay ? `<div class="stat"><div class="sval tnum">${m.delay.none.toFixed(1)} → ${m.delay.case1mo.toFixed(1)}</div><div class="slabel">MAE, no delay vs. 1-month-stale case data</div></div>` : ''}
+  `;
+}
+
+/* ---------- SEASONALITY CHART ---------- */
+function renderSeasonChart(){
+  const svg = document.getElementById('seasonChart');
+  const series = DATA.series[activeCounty];
+  const sums = new Array(12).fill(0), counts = new Array(12).fill(0);
+  series.forEach(d=>{
+    const m = parseInt(d.month.split('-')[1],10)-1;
+    sums[m]+=d.cases; counts[m]++;
+  });
+  const avgs = sums.map((s,i)=> counts[i]? s/counts[i] : 0);
+  const W=760,H=200,ML=46,MR=14,MT=14,MB=28;
+  const plotW=W-ML-MR, plotH=H-MT-MB;
+  const maxV = Math.max(...avgs)*1.15;
+  const bw = plotW/12*0.62;
+  let bars='', labels='';
+  const mShort=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  avgs.forEach((v,i)=>{
+    const cx = ML + (i+0.5)/12*plotW;
+    const h = (v/maxV)*plotH;
+    const y = MT+plotH-h;
+    bars += `<rect class="hoverbar" data-m="${i}" x="${(cx-bw/2).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="var(--accent2)" opacity="0.85"/>`;
+    labels += `<text x="${cx}" y="${H-8}" text-anchor="middle" font-size="10">${mShort[i]}</text>`;
+  });
+  let gridlines='';
+  for(let t=0;t<=3;t++){
+    const v = maxV*t/3; const yy=MT+plotH-(v/maxV)*plotH;
+    gridlines += `<line x1="${ML}" y1="${yy}" x2="${W-MR}" y2="${yy}" stroke="var(--line)" stroke-width="1"/><text x="${ML-8}" y="${yy+3}" text-anchor="end" font-size="10">${Math.round(v)}</text>`;
+  }
+  svg.innerHTML = gridlines+bars+labels;
+  svg.querySelectorAll('.hoverbar').forEach(b=>{
+    const i = parseInt(b.getAttribute('data-m'),10);
+    b.addEventListener('mousemove',(e)=> showTip(e.clientX,e.clientY,`<b>${mShort[i]}</b> avg: ${avgs[i].toFixed(0)} cases`));
+    b.addEventListener('mouseleave', hideTip);
+  });
+  document.querySelectorAll('.section .lede')[1] && null;
+  const ledeEl = document.getElementById('seasonChart').previousElementSibling;
+  if(ledeEl && ledeEl.classList.contains('lede')){
+    ledeEl.innerHTML = `The "grow&ndash;dry&ndash;blow" cycle predicts a seasonal rhythm in cases. Averaged across 2015&ndash;2025, <b style="color:var(--fg)">${activeCounty}</b>'s own data traces that pattern out.`;
+  }
+}
+
+/* ---------- SHAP ---------- */
+function renderShapChart(){
+  const svg = document.getElementById('shapChart');
+  const shap = DATA.shap[activeCounty];
+  document.getElementById('shapNote').innerHTML = activeCounty==='Maricopa'
+    ? `<span class="flag warn">Caveat</span> these SHAP values come from an exploratory XGBoost challenger model &mdash; <b>not</b> the frozen Negative Binomial model actually selected for Maricopa.`
+    : `Values shown are from the frozen, selected model for ${activeCounty} County.`;
+  const W=700,H=180,ML=120,MR=40,MT=10,MB=10;
+  const plotW=W-ML-MR, rowH=(H-MT-MB)/shap.feats.length;
+  const maxV = Math.max(...shap.feats.map(f=>f[1]))*1.15;
+  let bars = shap.feats.map((f,i)=>{
+    const y = MT + i*rowH + rowH*0.2;
+    const h = rowH*0.6;
+    const w = (f[1]/maxV)*plotW;
+    return `<text x="${ML-8}" y="${y+h/2+4}" text-anchor="end" font-size="11">${f[0]}</text>
+      <rect x="${ML}" y="${y}" width="${w}" height="${h}" rx="3" fill="var(--accent2)"/>
+      <text x="${ML+w+6}" y="${y+h/2+4}" font-size="10" fill="var(--fg-muted)">${f[1].toFixed(3)}</text>`;
+  }).join('');
+  svg.innerHTML = bars;
+}
+
+/* ---------- ABLATION ---------- */
+function renderAblTabs(){
+  const el = document.getElementById('ablTabs');
+  const periods = ['All','Apr_Dec','Jan_Mar','2025'];
+  const labels = {'All':'Full 2024','Apr_Dec':'Apr–Dec 2024','Jan_Mar':'Jan–Mar 2024 (concern window)','2025':'2025 provisional'};
+  el.innerHTML = periods.map(p=>`<button class="tab ${p===activePeriod?'active':''}" data-p="${p}">${labels[p]}</button>`).join('');
+  el.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', ()=>{ activePeriod = t.getAttribute('data-p'); renderAblTabs(); renderAblGrid(); }));
+}
+function renderAblGrid(){
+  const el = document.getElementById('ablGrid');
+  el.innerHTML = COUNTIES.map(c=>{
+    const row = ABL[activePeriod][c];
+    const maxV = Math.max(row.caseOnly,row.caseEnv)*1.05;
+    const helped = row.caseEnv < row.caseOnly;
+    return `<div class="abl-card">
+      <div class="aname">${c} <span class="flag ${helped?'good':'bad'}">${helped?'Env helped':'Env hurt'} ${helped?'−':'+'}${Math.abs(row.pct).toFixed(1)}%</span></div>
+      <div class="abl-bars">
+        <div class="bar-row"><div class="blabel" style="width:90px;">Case-only</div><div class="bar-track"><div class="bar-fill" style="width:${(row.caseOnly/maxV*100).toFixed(1)}%;background:var(--risk-flat)"></div></div><div class="bar-val tnum">${row.caseOnly.toFixed(1)}</div></div>
+        <div class="bar-row"><div class="blabel" style="width:90px;">+ Environment</div><div class="bar-track"><div class="bar-fill" style="width:${(row.caseEnv/maxV*100).toFixed(1)}%;background:${helped?'var(--risk-low)':'var(--risk-severe)'}"></div></div><div class="bar-val tnum">${row.caseEnv.toFixed(1)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- WIRE UP ---------- */
+function setActiveCounty(c){
+  activeCounty = c;
+  renderMap(); renderCountyCards(); renderKPIs(); renderTabs();
+  renderLineChart(); renderBarChart(); renderSeasonChart(); renderShapChart(); renderSpark();
+}
+
+document.getElementById('monthSlider').addEventListener('input', e=> updateMonth(parseInt(e.target.value,10)));
+document.getElementById('playBtn').addEventListener('click', togglePlay);
+document.getElementById('speedSel').addEventListener('change', ()=>{ if(playing){ clearTimeout(playTimer); stepPlay(); } });
+
+document.addEventListener('keydown', (e)=>{
+  if(e.target.tagName==='SELECT' || e.target.tagName==='INPUT') return;
+  if(e.key==='ArrowRight'){ const n=Math.min(131,activeMonthIdx+1); document.getElementById('monthSlider').value=n; updateMonth(n); }
+  if(e.key==='ArrowLeft'){ const n=Math.max(0,activeMonthIdx-1); document.getElementById('monthSlider').value=n; updateMonth(n); }
+  if(e.key===' '){ e.preventDefault(); togglePlay(); }
+});
+
+renderLegend();
+updateMonth(0);
+renderKPIs();
+renderTabs();
+renderLineChart();
+renderBarChart();
+renderSeasonChart();
+renderShapChart();
+renderSpark();
+renderAblTabs();
+renderAblGrid();
+
+})();
+</script>
+</body>
+</html>

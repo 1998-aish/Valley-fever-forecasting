@@ -1,0 +1,4 @@
+County,Selected_Tier2_Model,Training_Scope,Seasonal_MAE,Tier2_MAE,MAE_Reduction_pct,Tier1_Ridge_MAE
+Maricopa,NB2,County_nested_selected,240.166667,132.138105,44.9807,154.400000
+Pinal,XGB_medium,Pooled_XGB_nested,40.833333,28.425391,30.3868,41.480000
+Pima,XGB_medium,Pooled_XGB_nested,32.333333,29.801654,7.8299,27.540000

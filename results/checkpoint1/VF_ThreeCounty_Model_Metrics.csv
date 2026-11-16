@@ -1,0 +1,37 @@
+Period,Model,County,Months,MAE,RMSE,WAPE_pct
+2019-2023 development walk-forward,Ridge,Maricopa,60,110.49,135.25,17.02
+2019-2023 development walk-forward,Nonlinear boosting,Maricopa,60,134.21,161.93,20.68
+2019-2023 development walk-forward,Seasonal naive,Maricopa,60,200.05,234.78,30.82
+2019-2023 development walk-forward,Nonlinear boosting,Pima,60,16.42,21.6,14.77
+2019-2023 development walk-forward,Ridge,Pima,60,26.4,34.49,23.74
+2019-2023 development walk-forward,Seasonal naive,Pima,60,29.18,36.17,26.25
+2019-2023 development walk-forward,Nonlinear boosting,Pinal,60,16.57,21.0,20.42
+2019-2023 development walk-forward,Ridge,Pinal,60,22.93,28.47,28.25
+2019-2023 development walk-forward,Seasonal naive,Pinal,60,28.97,34.86,35.69
+2024 Jan-Dec,Ridge,Maricopa,12,154.4,173.73,16.97
+2024 Jan-Dec,Nonlinear boosting,Maricopa,12,165.1,206.46,18.14
+2024 Jan-Dec,Seasonal naive,Maricopa,12,240.17,304.7,26.39
+2024 Jan-Dec,Ridge,Pima,12,27.54,41.58,20.48
+2024 Jan-Dec,Nonlinear boosting,Pima,12,30.79,40.8,22.89
+2024 Jan-Dec,Seasonal naive,Pima,12,32.33,48.73,24.04
+2024 Jan-Dec,Nonlinear boosting,Pinal,12,24.27,30.88,19.63
+2024 Jan-Dec,Seasonal naive,Pinal,12,40.83,51.58,33.02
+2024 Jan-Dec,Ridge,Pinal,12,41.48,48.17,33.54
+2024 Apr-Dec only,Nonlinear boosting,Maricopa,9,118.84,148.57,13.8
+2024 Apr-Dec only,Seasonal naive,Maricopa,9,135.0,144.01,15.67
+2024 Apr-Dec only,Ridge,Maricopa,9,141.01,157.59,16.37
+2024 Apr-Dec only,Seasonal naive,Pima,9,14.78,20.12,12.37
+2024 Apr-Dec only,Nonlinear boosting,Pima,9,21.37,28.96,17.89
+2024 Apr-Dec only,Ridge,Pima,9,23.05,29.36,19.3
+2024 Apr-Dec only,Nonlinear boosting,Pinal,9,16.87,21.56,14.62
+2024 Apr-Dec only,Seasonal naive,Pinal,9,23.78,25.79,20.6
+2024 Apr-Dec only,Ridge,Pinal,9,34.75,40.67,30.1
+2025 provisional Jan-Dec,Nonlinear boosting,Maricopa,12,93.77,113.41,13.16
+2025 provisional Jan-Dec,Ridge,Maricopa,12,117.04,137.08,16.43
+2025 provisional Jan-Dec,Seasonal naive,Maricopa,12,273.0,340.43,38.32
+2025 provisional Jan-Dec,Nonlinear boosting,Pima,12,18.93,27.99,14.56
+2025 provisional Jan-Dec,Ridge,Pima,12,31.0,41.94,23.84
+2025 provisional Jan-Dec,Seasonal naive,Pima,12,35.33,41.28,27.18
+2025 provisional Jan-Dec,Nonlinear boosting,Pinal,12,15.89,18.74,16.54
+2025 provisional Jan-Dec,Seasonal naive,Pinal,12,36.75,49.89,38.25
+2025 provisional Jan-Dec,Ridge,Pinal,12,40.32,44.38,41.96
